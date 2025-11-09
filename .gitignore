@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+*.json
+*.config
+*.bit
+*.svf
+*.log
+*.vcd
+
+# Firmware build outputs
+firmware/*.o
+firmware/*.elf
+firmware/*.bin
+firmware/*.hex
+firmware/*.map
+firmware/*.lst
+
+# Editor/IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+
+# Temporary files
+*.tmp
+.DS_Store

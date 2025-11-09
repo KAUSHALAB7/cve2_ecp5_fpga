@@ -1,0 +1,25 @@
+// Knight Rider LED Pattern for CVE2 RISC-V on ECP5
+// GPIO base address: 0x80000000
+// LEDs are active-LOW on Versa 5G board
+
+#define GPIO_BASE 0x80000000
+#define GPIO_REG (*(volatile unsigned int *)GPIO_BASE)
+
+// Simple delay function
+void delay(unsigned int count) {
+    for (volatile unsigned int i = 0; i < count; i++) {
+        asm volatile ("nop");
+    }
+}
+
+int main(void) {
+    // Turn off all LEDs (write 0 to GPIO)
+    GPIO_REG = 0x00;
+    
+    while (1) {
+        // Do nothing, keep LEDs off
+        delay(100000);
+    }
+    
+    return 0;
+}

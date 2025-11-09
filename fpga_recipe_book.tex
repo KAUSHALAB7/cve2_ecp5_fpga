@@ -1,0 +1,410 @@
+% ============================================================================
+% ECP5-5G FPGA RECIPE BOOK: From Zero to Blinky and CVE2 RISC-V
+% Author: Kaushal
+% Date: November 5, 2025
+% ============================================================================
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{times}
+\usepackage{microtype}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, citecolor=blue}
+\usepackage{xcolor}
+\usepackage{listings}
+
+% Listings styles
+\definecolor{codebg}{RGB}{247,248,250}
+\definecolor{darkgreen}{RGB}{0,120,0}
+\lstdefinestyle{bashstyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{darkgreen},
+  stringstyle=\color{magenta},
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framerule=0.5pt,
+  breaklines=true,
+  prebreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}}
+}
+\lstdefinestyle{verilogstyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{darkgreen},
+  morekeywords={module,endmodule,wire,reg,always,posedge,negedge,assign,parameter,input,output,logic},
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framerule=0.5pt,
+  breaklines=true
+}
+
+\title{ECP5-5G FPGA Recipe Book\\\large From Zero to Blinky and CVE2 RISC-V (100\% Open-Source Flow)}
+\author{Kaushal}
+\date{November 5, 2025}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{What This Is}
+This is a practical, step-by-step “recipe book” to program the Lattice ECP5-5G Versa board from scratch. You’ll learn two end-to-end flows:
+\begin{itemize}
+  \item A minimal LED blinker (sanity test)\;\;\textbf{10 minutes}
+  \item A CVE2 RISC-V SoC running firmware on LEDs\;\;\textbf{30--60 minutes}
+\end{itemize}
+Everything uses open-source tools: Project Trellis, Yosys, nextpnr-ecp5, sv2v, and OpenOCD.
+
+\section{One-Page Quickstart (Cheat Sheet)}
+\subsection{Blinker in 7 Commands}
+\begin{lstlisting}[style=bashstyle]
+# 1) Create files
+cat > top.v <<'EOF'
+module top(input wire clk, output wire [7:0] led, output wire [13:0] disp);
+  reg [27:0] cnt = 0; always @(posedge clk) cnt <= cnt + 1;
+  assign led  = ~cnt[27:20]; // active-LOW LEDs
+  assign disp = 14'h3FFF;    // all OFF (active-LOW)
+endmodule
+EOF
+cat > versa.lpf <<'EOF'
+LOCATE COMP "clk" SITE "P3"; IOBUF PORT "clk" IO_TYPE=LVDS;
+# LEDs (active-LOW)
+LOCATE COMP "led[0]" SITE "E16"; IOBUF PORT "led[0]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[1]" SITE "D17"; IOBUF PORT "led[1]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[2]" SITE "D18"; IOBUF PORT "led[2]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[3]" SITE "E18"; IOBUF PORT "led[3]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[4]" SITE "F17"; IOBUF PORT "led[4]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[5]" SITE "F18"; IOBUF PORT "led[5]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[6]" SITE "E17"; IOBUF PORT "led[6]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[7]" SITE "F16"; IOBUF PORT "led[7]" IO_TYPE=LVCMOS25;
+# 14-seg display (optional)
+LOCATE COMP "disp[0]" SITE "M20"; IOBUF PORT "disp[0]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[1]" SITE "L18"; IOBUF PORT "disp[1]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[2]" SITE "M19"; IOBUF PORT "disp[2]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[3]" SITE "L16"; IOBUF PORT "disp[3]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[4]" SITE "L17"; IOBUF PORT "disp[4]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[5]" SITE "M18"; IOBUF PORT "disp[5]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[6]" SITE "N16"; IOBUF PORT "disp[6]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[7]" SITE "M17"; IOBUF PORT "disp[7]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[8]" SITE "N18"; IOBUF PORT "disp[8]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[9]" SITE "P17"; IOBUF PORT "disp[9]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[10]" SITE "N17"; IOBUF PORT "disp[10]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[11]" SITE "P16"; IOBUF PORT "disp[11]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[12]" SITE "R16"; IOBUF PORT "disp[12]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[13]" SITE "R17"; IOBUF PORT "disp[13]" IO_TYPE=LVCMOS25;
+EOF
+
+# 2) Synthesize, place/route, and pack
+yosys -p "synth_ecp5 -top top -json top.json" top.v
+nextpnr-ecp5 --um5g-45k --package CABGA381 --json top.json --lpf versa.lpf --textcfg top_out.config
+ecppack --svf-rowsize 100000 --svf top.svf top_out.config top.bit
+
+# 3) Program over JTAG (OpenOCD)
+openocd -f /usr/share/trellis/misc/openocd/ecp5-versa5g.cfg \
+  -c "transport select jtag; init; svf top.svf; exit"
+\end{lstlisting}
+
+\subsection{CVE2 SoC in 8 Commands (using existing project)}
+\begin{lstlisting}[style=bashstyle]
+cd /home/kaushal/cve2_fpga_project
+# Build bitstream and program
+make -j1 all prog
+# (Targets internally run sv2v -> yosys -> nextpnr -> ecppack -> openocd)
+\end{lstlisting}
+
+\section{Install the Open-Source Toolchain}
+\subsection{Prerequisites (Ubuntu/Debian)}
+\begin{lstlisting}[style=bashstyle]
+sudo apt-get update
+sudo apt-get install -y git build-essential cmake python3 python3-pip \
+  libftdi1-2 libftdi1-dev libusb-1.0-0-dev pkg-config \
+  texlive-latex-extra # optional (for compiling this guide)
+\end{lstlisting}
+
+\subsection{Project Trellis (ECP5 bitstream tools)}
+Use your distro packages if recent, or build from source (recommended for latest):
+\begin{lstlisting}[style=bashstyle]
+# Install Project Trellis (database + tools)
+sudo apt-get install -y prjtrellis-tools
+# Or from source (snippet)
+# git clone https://github.com/YosysHQ/prjtrellis && cd prjtrellis/libtrellis && cmake -DCMAKE_INSTALL_PREFIX=/usr . && make -j$(nproc) && sudo make install
+# Database path typically at /usr/share/trellis
+\end{lstlisting}
+
+\subsection{Yosys, nextpnr-ecp5, sv2v}
+\begin{lstlisting}[style=bashstyle]
+# Yosys and nextpnr-ecp5 (use distro or build from source)
+sudo apt-get install -y yosys nextpnr nextpnr-ecp5
+
+# sv2v (SystemVerilog -> Verilog)
+# Option A: Install from source
+# git clone https://github.com/zachjs/sv2v && cd sv2v && cabal update && cabal install
+# Option B: Use prebuilt binary if available in PATH
+sv2v --version || echo "Install sv2v separately if needed"
+\end{lstlisting}
+
+\subsection{OpenOCD (with ECP5 configs)}
+\begin{lstlisting}[style=bashstyle]
+sudo apt-get install -y openocd
+# Config for Versa 5G board typically at:
+#   /usr/share/trellis/misc/openocd/ecp5-versa5g.cfg
+\end{lstlisting}
+
+\section{Project Structure Templates}
+\subsection{Blinker Project}
+\begin{lstlisting}[style=bashstyle]
+blinker/
+  top.v
+  versa.lpf
+  Makefile
+\end{lstlisting}
+
+Minimal Makefile:
+\begin{lstlisting}[style=bashstyle]
+PROJ = top
+DEVICE = --um5g-45k
+PACKAGE = --package CABGA381
+LPF = versa.lpf
+
+all: $(PROJ).bit
+
+%.json: %.v
+	yosys -p "synth_ecp5 -top top -json $@" $<
+
+%_out.config: %.json
+	nextpnr-ecp5 $(DEVICE) $(PACKAGE) --json $< --lpf $(LPF) --textcfg $@
+
+%.bit: %_out.config
+	ecppack --svf-rowsize 100000 --svf $(PROJ).svf $< $@
+
+prog: $(PROJ).svf
+	openocd -f /usr/share/trellis/misc/openocd/ecp5-versa5g.cfg \
+	  -c "transport select jtag; init; svf $<; exit"
+
+clean:
+	rm -f *.json *_out.config *.bit *.svf
+\end{lstlisting}
+
+\subsection{CVE2 SoC Project}
+Recommended structure (already provided under \texttt{/home/kaushal/cve2\_fpga\_project}):
+\begin{lstlisting}[style=bashstyle]
+cve2_fpga_project/
+  rtl/           # SoC wrapper, stubs
+  build/         # Generated outputs
+  scripts/       # sv2v, yosys scripts
+  firmware/      # RISC-V firmware (optional)
+  versa.lpf      # Constraints
+  Makefile       # Full flow: sv2v -> yosys -> nextpnr -> ecppack -> openocd
+\end{lstlisting}
+
+\section{Example 1: LED Blinker (Sanity Test)}
+\subsection{Verilog Top}
+\begin{lstlisting}[style=verilogstyle]
+module top(
+  input  wire       clk,
+  output wire [7:0] led,
+  output wire [13:0] disp
+);
+  // Slow counter to make LEDs visible
+  reg [27:0] cnt = 28'd0;
+  always @(posedge clk) cnt <= cnt + 1'b1;
+
+  // Active-LOW outputs on Versa 5G
+  assign led  = ~cnt[27:20];
+  assign disp = ~14'h3FFF; // all OFF
+endmodule
+\end{lstlisting}
+
+\subsection{Constraints (LPF)}
+Use the official Versa 5G pins (as tested):
+\begin{lstlisting}[style=bashstyle]
+LOCATE COMP "clk" SITE "P3"; IOBUF PORT "clk" IO_TYPE=LVDS;
+# LEDs
+LOCATE COMP "led[0]" SITE "E16"; IOBUF PORT "led[0]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[1]" SITE "D17"; IOBUF PORT "led[1]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[2]" SITE "D18"; IOBUF PORT "led[2]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[3]" SITE "E18"; IOBUF PORT "led[3]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[4]" SITE "F17"; IOBUF PORT "led[4]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[5]" SITE "F18"; IOBUF PORT "led[5]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[6]" SITE "E17"; IOBUF PORT "led[6]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[7]" SITE "F16"; IOBUF PORT "led[7]" IO_TYPE=LVCMOS25;
+# 14-seg
+LOCATE COMP "disp[0]" SITE "M20"; IOBUF PORT "disp[0]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[1]" SITE "L18"; IOBUF PORT "disp[1]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[2]" SITE "M19"; IOBUF PORT "disp[2]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[3]" SITE "L16"; IOBUF PORT "disp[3]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[4]" SITE "L17"; IOBUF PORT "disp[4]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[5]" SITE "M18"; IOBUF PORT "disp[5]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[6]" SITE "N16"; IOBUF PORT "disp[6]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[7]" SITE "M17"; IOBUF PORT "disp[7]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[8]" SITE "N18"; IOBUF PORT "disp[8]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[9]" SITE "P17"; IOBUF PORT "disp[9]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[10]" SITE "N17"; IOBUF PORT "disp[10]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[11]" SITE "P16"; IOBUF PORT "disp[11]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[12]" SITE "R16"; IOBUF PORT "disp[12]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[13]" SITE "R17"; IOBUF PORT "disp[13]" IO_TYPE=LVCMOS25;
+\end{lstlisting}
+
+\subsection{Build and Program}
+\begin{lstlisting}[style=bashstyle]
+yosys -p "synth_ecp5 -top top -json top.json" top.v
+nextpnr-ecp5 --um5g-45k --package CABGA381 --json top.json --lpf versa.lpf --textcfg top_out.config
+ecppack --svf-rowsize 100000 --svf top.svf top_out.config top.bit
+openocd -f /usr/share/trellis/misc/openocd/ecp5-versa5g.cfg -c "transport select jtag; init; svf top.svf; exit"
+\end{lstlisting}
+If LEDs count and MSB toggles slowly, your board and toolchain are good.
+
+\section{Example 2: CVE2 RISC-V SoC}
+\subsection{Overview}
+We use the OpenHW CVE2 core (RV32E), internal 8 KB memory, and a GPIO register mapped at \texttt{0x8000\_0000}. Firmware increments an 8-bit counter and writes to GPIO, driving the board LEDs.
+
+\subsection{Flow Summary}
+\begin{enumerate}
+  \item Convert SystemVerilog to Verilog (sv2v)
+  \item Synthesize with Yosys (\texttt{synth\_ecp5})
+  \item Place and route with nextpnr-ecp5
+  \item Pack bitstream with ecppack
+  \item Program with OpenOCD
+\end{enumerate}
+
+\subsection{Run the Provided Project}
+Already set up at \texttt{/home/kaushal/cve2\_fpga\_project}:
+\begin{lstlisting}[style=bashstyle]
+cd /home/kaushal/cve2_fpga_project
+make -j1 all prog
+\end{lstlisting}
+This invokes sv2v/Yosys/nextpnr/ecppack/OpenOCD with the correct device, package, and constraints.
+
+\subsection{Key Files (Concepts)}
+\begin{itemize}
+  \item SoC wrapper: connects CVE2 instruction/data busses to internal RAM and GPIO
+  \item LPF constraints: use the same pin map as the blinker
+  \item Makefile: automates the entire flow
+\end{itemize}
+
+\section{Troubleshooting (Most Common Issues)}
+\subsection{OpenOCD cannot find the board}
+\textbf{Symptom:} JTAG scan fails or no device found.\\
+\textbf{Fix:}
+\begin{itemize}
+  \item Use the correct config: \texttt{/usr/share/trellis/misc/openocd/ecp5-versa5g.cfg}
+  \item Try root: \texttt{sudo openocd ...} (as a quick test)
+  \item Check cables and board power
+\end{itemize}
+
+\subsection{LEDs stuck ON (or OFF)}
+\textbf{Symptom:} Outputs inverted.\\
+\textbf{Fix:} LEDs are active-LOW on Versa 5G. Invert outputs in RTL: \texttt{assign led = ~value;}.
+
+\subsection{Place-and-route fails timing}
+\textbf{Symptom:} nextpnr timing errors.\\
+\textbf{Fix:}
+\begin{itemize}
+  \item Reduce clock speed (use slower enables)
+  \item Register long combinational paths (e.g., instruction/data reads)
+  \item Ensure all clocks route through global nets
+\end{itemize}
+
+\subsection{Synthesis errors with SystemVerilog}
+\textbf{Symptom:} Yosys rejects SV constructs.\\
+\textbf{Fix:} Run sv2v to convert SV to Verilog first; simplify interfaces and packages.
+
+\subsection{Nothing blinks}
+\textbf{Checklist:}
+\begin{itemize}
+  \item Verify \texttt{versa.lpf} pins match the board
+  \item Run the blinker first (sanity check)
+  \item Confirm OpenOCD programming completes without errors
+  \item Use a very slow counter to make activity visible
+\end{itemize}
+
+\section{Appendix A: Makefile (Blinker)}
+\begin{lstlisting}[style=bashstyle]
+PROJ = top
+DEVICE = --um5g-45k
+PACKAGE = --package CABGA381
+LPF = versa.lpf
+
+all: $(PROJ).bit
+
+%.json: %.v
+	yosys -p "synth_ecp5 -top top -json $@" $<
+
+%_out.config: %.json
+	nextpnr-ecp5 $(DEVICE) $(PACKAGE) --json $< --lpf $(LPF) --textcfg $@
+
+%.bit: %_out.config
+	ecppack --svf-rowsize 100000 --svf $(PROJ).svf $< $@
+
+prog: $(PROJ).svf
+	openocd -f /usr/share/trellis/misc/openocd/ecp5-versa5g.cfg \
+	  -c "transport select jtag; init; svf $<; exit"
+
+clean:
+	rm -f *.json *_out.config *.bit *.svf
+\end{lstlisting}
+
+\section{Appendix B: LPF (Versa 5G)}
+\begin{lstlisting}[style=bashstyle]
+LOCATE COMP "clk" SITE "P3"; IOBUF PORT "clk" IO_TYPE=LVDS;
+# LEDs
+LOCATE COMP "led[0]" SITE "E16"; IOBUF PORT "led[0]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[1]" SITE "D17"; IOBUF PORT "led[1]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[2]" SITE "D18"; IOBUF PORT "led[2]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[3]" SITE "E18"; IOBUF PORT "led[3]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[4]" SITE "F17"; IOBUF PORT "led[4]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[5]" SITE "F18"; IOBUF PORT "led[5]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[6]" SITE "E17"; IOBUF PORT "led[6]" IO_TYPE=LVCMOS25;
+LOCATE COMP "led[7]" SITE "F16"; IOBUF PORT "led[7]" IO_TYPE=LVCMOS25;
+# 14-seg
+LOCATE COMP "disp[0]" SITE "M20"; IOBUF PORT "disp[0]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[1]" SITE "L18"; IOBUF PORT "disp[1]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[2]" SITE "M19"; IOBUF PORT "disp[2]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[3]" SITE "L16"; IOBUF PORT "disp[3]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[4]" SITE "L17"; IOBUF PORT "disp[4]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[5]" SITE "M18"; IOBUF PORT "disp[5]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[6]" SITE "N16"; IOBUF PORT "disp[6]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[7]" SITE "M17"; IOBUF PORT "disp[7]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[8]" SITE "N18"; IOBUF PORT "disp[8]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[9]" SITE "P17"; IOBUF PORT "disp[9]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[10]" SITE "N17"; IOBUF PORT "disp[10]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[11]" SITE "P16"; IOBUF PORT "disp[11]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[12]" SITE "R16"; IOBUF PORT "disp[12]" IO_TYPE=LVCMOS25;
+LOCATE COMP "disp[13]" SITE "R17"; IOBUF PORT "disp[13]" IO_TYPE=LVCMOS25;
+\end{lstlisting}
+
+\section{Appendix C: OpenOCD Notes}
+\begin{itemize}
+  \item Standard config: \texttt{/usr/share/trellis/misc/openocd/ecp5-versa5g.cfg}
+  \item Useful options: \texttt{-d} (debug), \texttt{init; svf file.svf; exit}
+  \item For SPI flash programming: use \texttt{ecppack --flash ...} and appropriate OpenOCD scripts (beyond scope here)
+\end{itemize}
+
+\section{Appendix D: Reading Reports}
+\begin{itemize}
+  \item Yosys resource summary: shown after synth, or with \texttt{stat}
+  \item nextpnr timing: look for Fmax and critical path in the log
+  \item Resource utilization: LUT4, FF, BRAM, DSP counts in nextpnr summary
+\end{itemize}
+
+\section{You’ve Got This}
+When in doubt, start from the blinker. Once it works, move to the SoC. Keep outputs visible (LEDs, 14-seg) and make small, reversible changes. This booklet is designed so you can rebuild the whole flow without any external help.
+
+\end{document}

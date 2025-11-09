@@ -1,0 +1,32 @@
+\contentsline {section}{\numberline {1}What This Is}{3}{section.1}%
+\contentsline {section}{\numberline {2}One-Page Quickstart (Cheat Sheet)}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Blinker in 7 Commands}{3}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}CVE2 SoC in 8 Commands (using existing project)}{5}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Install the Open-Source Toolchain}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Prerequisites (Ubuntu/Debian)}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Project Trellis (ECP5 bitstream tools)}{5}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Yosys, nextpnr-ecp5, sv2v}{5}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}OpenOCD (with ECP5 configs)}{6}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Project Structure Templates}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Blinker Project}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}CVE2 SoC Project}{7}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Example 1: LED Blinker (Sanity Test)}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Verilog Top}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Constraints (LPF)}{7}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Build and Program}{9}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Example 2: CVE2 RISC-V SoC}{9}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Overview}{9}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Flow Summary}{9}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Run the Provided Project}{9}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Key Files (Concepts)}{10}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Troubleshooting (Most Common Issues)}{10}{section.7}%
+\contentsline {subsection}{\numberline {7.1}OpenOCD cannot find the board}{10}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}LEDs stuck ON (or OFF)}{10}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Place-and-route fails timing}{10}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Synthesis errors with SystemVerilog}{10}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}Nothing blinks}{11}{subsection.7.5}%
+\contentsline {section}{\numberline {8}Appendix A: Makefile (Blinker)}{11}{section.8}%
+\contentsline {section}{\numberline {9}Appendix B: LPF (Versa 5G)}{11}{section.9}%
+\contentsline {section}{\numberline {10}Appendix C: OpenOCD Notes}{13}{section.10}%
+\contentsline {section}{\numberline {11}Appendix D: Reading Reports}{13}{section.11}%
+\contentsline {section}{\numberline {12}You’ve Got This}{13}{section.12}%
