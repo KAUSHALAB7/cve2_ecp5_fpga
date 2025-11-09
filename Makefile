@@ -40,8 +40,6 @@ all: ${PROJ}.bit
 
 firmware:
 	$(MAKE) -C firmware
-	@echo "Updating cve2_soc.v with firmware..."
-	./update_firmware.py
 
 gen_sv: firmware
 	./gen_sv2v.sh
